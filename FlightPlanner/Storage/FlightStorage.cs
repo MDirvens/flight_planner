@@ -7,13 +7,11 @@ namespace FlightPlanner.Storage
 {
     public class FlightStorage
     {
-        private static List<Flight> _flights = new List<Flight>();
+        public static List<Flight> _flights = new List<Flight>();
         private static int _id;
 
         public static Flight AddFlight(AddFlightRequest request)
         {
-            lock (_flights)
-            {
                 var flight = new Flight
                 {
                     Id = ++_id,
@@ -27,7 +25,6 @@ namespace FlightPlanner.Storage
                 _flights.Add(flight);
 
                 return flight;
-            }
         }
 
         public static Flight GetFlight(int id)
@@ -49,25 +46,19 @@ namespace FlightPlanner.Storage
 
         public static bool RequestValidFlights(SearchFlightsRequest request)
         {
-            lock (_flights)
-            {
                 if (request is null || request.DepartureDate is null ||
                 request.From is null || request.To is null ||
                 request.From == request.To)
                     return false;
 
                 return true;
-            }
         }
 
         public static void DeleteFlight(int id)
         {
-            lock (_flights)
-            {
                 var flight = GetFlight(id);
                 if (flight != null)
                     _flights.Remove(flight);
-            }
         }
 
         public static List<Airport> FindAirports(string airport)
@@ -97,25 +88,27 @@ namespace FlightPlanner.Storage
 
         public static bool Exist(AddFlightRequest request)
         {
-            lock (_flights)
-            {
-                return _flights.Any(f => 
+                return _flights.Any(f =>
                     f.Carrier == request.Carrier &&
                     f.DepartureTime == request.DepartureTime &&
                     f.ArrivalTime == request.ArrivalTime &&
                     f.To.AirportName == request.To.AirportName &&
                     f.From.AirportName == request.From.AirportName);
-            }
         }
 
         public static bool IsValid(AddFlightRequest request)
         {
-            lock (_flights)
-            {
                 if (String.IsNullOrEmpty(request.ArrivalTime) || String.IsNullOrEmpty(request.DepartureTime) ||
                     String.IsNullOrEmpty(request.Carrier))
+                {
+                    Console.WriteLine(request.ArrivalTime);
+                    Console.WriteLine(request.Carrier);
+                    Console.WriteLine(request.DepartureTime);
+                    Console.WriteLine(request.From);
+                    Console.WriteLine(request.To);
                     return false;
-
+                }
+                    
                 if (request.From is null || request.To is null)
                     return false;
 
@@ -139,7 +132,6 @@ namespace FlightPlanner.Storage
                     return false;
 
                 return true;
-            }
         }
     }
 }
