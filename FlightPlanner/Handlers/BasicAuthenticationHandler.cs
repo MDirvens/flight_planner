@@ -21,10 +21,10 @@ namespace FlightPlanner.Handlers
         {
         }
 
-        protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             if (!Request.Headers.ContainsKey("Authorization"))
-                return AuthenticateResult.Fail("Missing Authorization Header");
+                return Task.FromResult(AuthenticateResult.Fail("Missing Authorization Header"));
             
             try
             {
@@ -36,7 +36,7 @@ namespace FlightPlanner.Handlers
 
                 if (username != "codelex-admin" || password != "Password123")
                 {
-                    return AuthenticateResult.Fail("Invalid username or password");
+                    return Task.FromResult(AuthenticateResult.Fail("Invalid username or password"));
                 }
 
                 var claims = new Claim[] {
@@ -47,11 +47,11 @@ namespace FlightPlanner.Handlers
                 var identity = new ClaimsIdentity(claims, Scheme.Name);
                 var principal = new ClaimsPrincipal(identity);
                 var ticket = new AuthenticationTicket(principal, Scheme.Name);
-                return AuthenticateResult.Success(ticket);
+                return Task.FromResult(AuthenticateResult.Success(ticket));
             }
             catch
             {
-                return AuthenticateResult.Fail("Invalid Authorization Header");
+                return Task.FromResult(AuthenticateResult.Fail("Invalid Authorization Header"));
             }
         }
     }
