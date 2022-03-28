@@ -1,24 +1,27 @@
-﻿using System.Linq;
-using FlightPlanner.Models;
-using FlightPlanner.Storage;
+﻿using System.Collections.Generic;
+using System.Linq;
+using AutoMapper;
+using FlightPlanner.Core.Dto;
+using FlightPlanner.Core.Models;
+using FlightPlanner.Core.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace FlightPlanner.Controllers
 {
     [Route("admin-api")]
     [EnableCors]
     [ApiController]
-    public class AdminApiController : ControllerBase
+    public class ApiController : ApiControllerBase
     {
-        private readonly FlightPlanerDbContext _context;
-        private static readonly object _lock = new();
-
-        public AdminApiController(FlightPlanerDbContext context)
+        public ApiController(IFlightService flightService,
+                             IEnumerable<IValidator> validators,
+                             IMapper mapper)
         {
-            _context = context;
+            _flightService = flightService;
+            _validators = validators;
+            _mapper = mapper;
         }
 
         [HttpGet]
@@ -26,42 +29,33 @@ namespace FlightPlanner.Controllers
         [Route("flights/{id}")]
         public IActionResult GetFlights(int id)
         {
-            var flight = _context.Flights
-                .Include(f => f.From)
-                .Include(f => f.To)
-                .SingleOrDefault(f => f.Id == id);
+            var flight = _flightService.GetFlightWithAirports(id);
 
-            if (flight is null)
-                return NotFound();
-
-            return Ok(flight);
+            return flight == null ? NotFound() : Ok(flight);
         }
 
         [HttpPut]
         [Authorize]
         [Route("flights")]
-        public IActionResult PutFlights(AddFlightRequest request)
+        public IActionResult PutFlights(AddFlightDto dto)
         {
             lock (_lock)
             {
 
-                if (!FlightStorage.IsValid(request))
+                if (!_validators.All(v => v.IsValid(dto)))
                 {
                     return BadRequest();
                 }
 
-
-                if (Exist(request))
+                if (_flightService.Exist(dto))
                 {
                     return Conflict();
                 }
 
+                var flight = _mapper.Map<Flight>(dto);
+                _flightService.Create(flight);
 
-                var flight = FlightStorage.ConvertToFlight(request);
-                _context.Flights.Add(flight);
-                _context.SaveChanges();
-
-                return Created("", flight);
+                return Created("", _mapper.Map<AddFlightDto>(flight));
             }
         }
 
@@ -70,28 +64,9 @@ namespace FlightPlanner.Controllers
         [Route("flights/{id}")]
         public IActionResult DeleteFlight(int id)
         {
-            var flight = _context.Flights
-                .Include(f => f.From)
-                .Include(f => f.To)
-                .SingleOrDefault(f => f.Id == id);
-
-            if (flight != null)
-            {
-                _context.Flights.Remove(flight);
-                _context.SaveChanges();
-            }
+            _flightService.DeleteFlightById(id);
 
             return Ok();
-        }
-
-        private bool Exist(AddFlightRequest request)
-        {
-            return _context.Flights.Any(f =>
-                f.Carrier.ToLower().Trim() == request.Carrier.ToLower().Trim() &&
-                f.DepartureTime == request.DepartureTime &&
-                f.ArrivalTime == request.ArrivalTime &&
-                f.To.AirportName.ToLower().Trim() == request.To.AirportName.ToLower().Trim() &&
-                f.From.AirportName.ToLower().Trim() == request.From.AirportName.ToLower().Trim());
         }
     }
 }
