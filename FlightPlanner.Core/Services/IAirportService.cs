@@ -7,6 +7,5 @@ namespace FlightPlanner.Core.Services
     public interface IAirportService : IEntityService<Airport>
     {
         List<AddAirportDto> GetAirports(string search);
-        List<AddAirportDto> ConvertAirportList(List<Airport> airports);
     }
 }
